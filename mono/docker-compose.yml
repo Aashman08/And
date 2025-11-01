@@ -1,14 +1,14 @@
-\\\\\\\\\\\\\\\\\\\\\\version: '3.8'
+version: '3.8'
 
 services:
   # PostgreSQL database
   postgres:
     image: postgres:16-alpine
-    container_name: r2d-postgres
+    container_name: aashman-postgres
     environment:
-      POSTGRES_DB: r2d
-      POSTGRES_USER: r2d
-      POSTGRES_PASSWORD: r2d
+      POSTGRES_DB: aashman-db
+      POSTGRES_USER: aashman
+      POSTGRES_PASSWORD: aashman0803$
     ports:
       - "5432:5432"
     volumes:
@@ -24,7 +24,7 @@ services:
   # OpenSearch for BM25 search
   opensearch:
     image: opensearchproject/opensearch:2.11.0
-    container_name: r2d-opensearch
+    container_name: aashman-opensearch
     environment:
       - discovery.type=single-node
       - bootstrap.memory_lock=true
@@ -55,29 +55,29 @@ services:
     build:
       context: ./apps/backend/prisma-migrations
       dockerfile: Dockerfile
-    container_name: r2d-prisma-migrations
+    container_name: aashman-prisma-migrations
     environment:
-      DATABASE_URL: postgresql://r2d:r2d@postgres:5432/r2d
+      DATABASE_URL: postgresql://aashman:aashman0803$@postgres:5432/aashman-db
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - r2d-network
+      - aashman-network
 
   # FastAPI backend
   api:
     build:
       context: ./apps/backend/api
       dockerfile: Dockerfile
-    container_name: r2d-api
+    container_name: aashman-api
     environment:
       # Database
-      DATABASE_URL: postgresql://r2d:r2d@postgres:5432/r2d
+      DATABASE_URL: postgresql://aashman:aashman0803$@postgres:5432/aashman-db
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: r2d
-      POSTGRES_USER: r2d
-      POSTGRES_PASSWORD: r2d
+      POSTGRES_DB: aashman-db
+      POSTGRES_USER: aashman
+      POSTGRES_PASSWORD: aashman0803$
       
       # OpenSearch
       OPENSEARCH_HOST: opensearch
@@ -87,7 +87,7 @@ services:
       
       # API Keys (required - set in .env)
       PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME:-r2d-chunks}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME:-aashman-chunks}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       COHERE_API_KEY: ${COHERE_API_KEY}
       PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
@@ -117,14 +117,14 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - r2d-network
+      - aashman-network
 
   # Next.js frontend
   next:
     build:
       context: .
       dockerfile: ./apps/next/Dockerfile
-    container_name: r2d-next
+    container_name: aashman-next
     environment:
       NEXT_PUBLIC_API_URL: http://api:8000/api
     ports:
@@ -133,13 +133,13 @@ services:
       api:
         condition: service_healthy
     networks:
-      - r2d-network
+      - aashman-network
 
 volumes:
   postgres_data:
   opensearch_data:
 
 networks:
-  r2d-network:
+  aashman-network:
     driver: bridge
 

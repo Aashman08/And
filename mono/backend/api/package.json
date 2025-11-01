@@ -14,8 +14,8 @@
     "clean": "rm -rf dist .turbo node_modules"
   },
   "dependencies": {
-    "@r2d/prisma": "workspace:*",
-    "@r2d/universal": "workspace:*",
+    "@r2d/prisma": "*",
+    "@r2d/universal": "*",
     "@trpc/server": "^10.45.0",
     "express": "^4.18.2",
     "cors": "^2.8.5",

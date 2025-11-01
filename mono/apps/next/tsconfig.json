@@ -24,7 +24,7 @@
       "@r2d/universal": ["../../packages/universal/src"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".storybook/Components/Facets.stories.tsx", ".storybook/Components/ResultCard.stories.tsx", ".storybook/Components/SearchBar.stories.tsx"],
   "exclude": ["node_modules"]
 }
 

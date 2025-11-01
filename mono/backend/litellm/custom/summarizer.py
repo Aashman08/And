@@ -5,31 +5,43 @@ from typing import Dict
 
 from litellm import completion
 
-from app.config import settings
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 
-SUMMARIZATION_PROMPT = """You are an expert research analyst. Given the following document, extract a structured summary with exactly 5 sections:
-
-1. **problem**: What problem or research question is being addressed?
-2. **approach**: What methods, techniques, or approach is being used?
-3. **evidence_or_signals**: What key evidence, data, signals, or traction is mentioned?
-4. **result**: What are the main outcomes, findings, or achievements?
-5. **limitations**: What limitations, challenges, or open questions remain?
-
-Keep each section concise (1-2 sentences max). Be specific and factual.
+SUMMARIZATION_PROMPT = """You are an expert research analyst. Analyze the following document and create a structured summary.
 
 Document Title: {title}
 Source: {source}
 Content: {content}
 
-Return your response as a JSON object with keys: problem, approach, evidence_or_signals, result, limitations.
+Extract exactly 5 sections:
+1. problem: What problem or research question is being addressed?
+2. approach: What methods, techniques, or approach is being used?
+3. evidence_or_signals: What key evidence, data, signals, or traction is mentioned?
+4. result: What are the main outcomes, findings, or achievements?
+5. limitations: What limitations, challenges, or open questions remain?
+
+Keep each section concise (1-2 sentences max). Be specific and factual.
+
+You MUST respond with ONLY a valid JSON object in this exact format:
+{{
+  "problem": "...",
+  "approach": "...",
+  "evidence_or_signals": "...",
+  "result": "...",
+  "limitations": "..."
+}}
 """
 
 
 async def summarize_document(
     doc_id: str,
+    
     title: str,
     content: str,
     source: str,
@@ -53,13 +65,15 @@ async def summarize_document(
             content=content[:4000],  # Truncate if too long
         )
 
+        # Set API key in environment for LiteLLM
+        os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+        
         response = completion(
             model=settings.litellm_summarization_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=500,
-            api_key=settings.openai_api_key,
-            timeout=settings.INTERNAL_OP_TIMEOUT / 1000,  # Convert to seconds
+            response_format={"type": "json_object"},  # Force JSON output
         )
 
         content = response.choices[0].message.content

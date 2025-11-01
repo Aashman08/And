@@ -3,6 +3,7 @@ Llama-Indexer Service - FastAPI server for document processing and search.
 
 Handles:
 - Hybrid search (BM25 + vector)
+- Document reranking (Cohere)
 - Document indexing
 - Highlight generation
 - Data ingestion from multiple sources
@@ -17,15 +18,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 # Import services
-from app.services.retriever import hybrid_search
-from app.services.highlight import generate_highlights
-from app.clients.opensearch import (
+from services.retriever import hybrid_search
+from services.highlight import generate_highlights
+from services.reranker import rerank_documents
+from clients.opensearch import (
     index_papers_bulk,
     index_startups_bulk,
     create_papers_index,
     create_startups_index,
 )
-from app.clients.pinecone import upsert_vectors_bulk, create_index, get_index_stats
+from clients.pinecone import upsert_vectors_bulk, create_index, get_index_stats
 
 # Configure logging
 logging.basicConfig(
@@ -75,6 +77,18 @@ class HighlightRequest(BaseModel):
 class HighlightResponse(BaseModel):
     """Highlight generation response."""
     highlights: List[str]
+
+
+class RerankRequest(BaseModel):
+    """Rerank request schema."""
+    query: str = Field(..., min_length=1)
+    documents: List[dict] = Field(..., min_items=1)
+    top_n: int = Field(30, ge=1, le=100)
+
+
+class RerankResponse(BaseModel):
+    """Rerank response schema."""
+    results: List[tuple]
 
 
 class IndexRequest(BaseModel):
@@ -192,6 +206,35 @@ async def generate_highlights_endpoint(request: HighlightRequest):
 
     except Exception as e:
         logger.error(f"Highlight generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/rerank", response_model=RerankResponse)
+async def rerank(request: RerankRequest):
+    """
+    Rerank documents using Cohere Rerank v3 API.
+
+    Args:
+        request: Rerank request with query, documents, and top_n
+
+    Returns:
+        Reranked documents with scores
+    """
+    try:
+        logger.info(f"Reranking {len(request.documents)} documents")
+
+        reranked = await rerank_documents(
+            query=request.query,
+            documents=request.documents,
+            top_n=request.top_n,
+        )
+
+        logger.info(f"Reranked to top {len(reranked)} results")
+
+        return {"results": reranked}
+
+    except Exception as e:
+        logger.error(f"Reranking failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

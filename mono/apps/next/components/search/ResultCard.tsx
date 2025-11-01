@@ -1,4 +1,4 @@
-\\\\\\\\\\\\\\\\'use client'
+'use client'
 
 import { useState } from 'react'
 import { FileText, Building2, Calendar, Users, Tag, ExternalLink, ChevronDown, ChevronUp, Sparkles, Loader2 } from 'lucide-react'

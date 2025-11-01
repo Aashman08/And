@@ -16,23 +16,25 @@ This is a **microservices-based R&D discovery platform** with a hybrid architect
 │                        backend/api/                             │
 │  - Routes requests to specialized Python services              │
 │  - Handles auth, orchestration, and business logic             │
-└──────────┬──────────────────────────────────┬───────────────────┘
-           │                                  │
-           ▼                                  ▼
-┌──────────────────────────┐    ┌────────────────────────────────┐
-│   LiteLLM Proxy Service  │    │  Llama-Indexer Service         │
-│   backend/litellm/       │    │  backend/llama-indexer/        │
-│   (Python)               │    │  (Python)                      │
-│                          │    │                                │
-│  - OpenAI summarization  │    │  - Document chunking           │
-│  - Cohere reranking      │    │  - Embedding (e5-base-v2)      │
-│  - Unified LLM interface │    │  - OpenSearch (BM25)           │
-│                          │    │  - Pinecone (vectors)          │
-│                          │    │  - Hybrid search & highlights  │
-└──────────────────────────┘    └────────────────────────────────┘
-           │                                  │
-           └──────────────┬───────────────────┘
-                          ▼
+└─────┬──────────────────────┬──────────────────────┬─────────────┘
+      │                      │                      │
+      ▼                      ▼                      ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐
+│  LiteLLM Service│  │Llama-Indexer Svc│  │  Tavily Service     │
+│  backend/litellm│  │backend/llama-   │  │  backend/tavily/    │
+│  (Python)       │  │indexer/ (Python)│  │  (Python)           │
+│                 │  │                 │  │                     │
+│ - Summarization │  │ - Hybrid search │  │ - Web search        │
+│   (OpenAI)      │  │ - Reranking     │  │   (Tavily API)      │
+│                 │  │   (Cohere)      │  │ - URL extraction    │
+│                 │  │ - Embeddings    │  │ - Fresh data        │
+│                 │  │ - OpenSearch    │  │                     │
+│                 │  │ - Pinecone      │  │                     │
+│                 │  │ - Highlights    │  │                     │
+└─────────────────┘  └─────────────────┘  └─────────────────────┘
+      │                      │                      │
+      └──────────────────────┴──────────────────────┘
+                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Data Layer                                 │
 │  - PostgreSQL (metadata via Prisma)                            │
@@ -68,17 +70,23 @@ mono/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── litellm/                       # LiteLLM proxy (Python)
-│   │   ├── custom/                    # Custom LiteLLM implementations
-│   │   ├── config.yaml                # LiteLLM configuration
+│   ├── litellm/                       # LiteLLM service (Python)
+│   │   ├── custom/                    # Summarization implementation
+│   │   ├── config.py                  # Configuration
 │   │   ├── requirements.txt
-│   │   └── server.py                  # FastAPI endpoints for LLM ops
+│   │   └── server.py                  # FastAPI - summarization only
 │   │
-│   └── llama-indexer/                 # Document processing (Python)
-│       ├── app/
-│       │   ├── services/              # Chunking, embedding, search
-│       │   ├── clients/               # OpenSearch, Pinecone clients
-│       │   └── main.py                # FastAPI server
+│   ├── llama-indexer/                 # Document processing (Python)
+│   │   ├── services/                  # Chunking, embedding, search, reranking
+│   │   ├── clients/                   # OpenSearch, Pinecone clients
+│   │   ├── config.py                  # Configuration
+│   │   ├── main.py                    # FastAPI server
+│   │   └── requirements.txt
+│   │
+│   └── tavily/                        # Web search service (Python)
+│       ├── services/                  # Tavily API integration
+│       ├── config.py                  # Configuration
+│       ├── server.py                  # FastAPI - web search endpoints
 │       └── requirements.txt
 │
 ├── packages/                          # Shared libraries
@@ -119,23 +127,34 @@ mono/
 
 ### 1. **Polyglot Microservices**
 - **TypeScript (backend/api)**: API gateway, orchestration, business logic
-- **Python (backend/litellm)**: LLM operations (reranking, summarization)
-- **Python (backend/llama-indexer)**: Document processing, search, embeddings
+- **Python (backend/litellm)**: Document summarization (OpenAI)
+- **Python (backend/llama-indexer)**: Document search, reranking, embeddings
+- **Python (backend/tavily)**: Real-time web search (Tavily API)
 
 **Why?**
 - TypeScript for type-safe API and frontend integration
 - Python for ML libraries (sentence-transformers, LlamaIndex)
-- Each service has a single responsibility
+- Each service has a single, well-defined responsibility
 
 ### 2. **tRPC Instead of REST**
 - Type-safe end-to-end from backend to frontend
 - Auto-generated types from procedures
 - Better DX with autocomplete and compile-time checks
 
-### 3. **Service Boundaries**
-- **backend/api**: Thin orchestration layer, no ML/heavy compute
-- **backend/litellm**: All LLM API calls isolated (OpenAI, Cohere)
-- **backend/llama-indexer**: All search/indexing/embedding logic
+### 3. **Service Boundaries (Clean Separation)**
+
+| Service | Port | Responsibility | External APIs |
+|---------|------|----------------|---------------|
+| **backend/api** | 8000 | Orchestration, auth, database | None |
+| **backend/litellm** | 8001 | Summarization only | OpenAI |
+| **backend/llama-indexer** | 8002 | Search, reranking, indexing | Cohere, OpenSearch, Pinecone |
+| **backend/tavily** | 8003 | Web search | Tavily |
+
+**Design Principles**:
+- ✅ Each service has ONE primary responsibility
+- ✅ Reranking lives with search (llama-indexer), not LLM service
+- ✅ Web search is separate from internal document search
+- ✅ API gateway orchestrates but doesn't do heavy compute
 
 ### 4. **Layered Architecture in backend/api/**
 
@@ -205,23 +224,33 @@ See [ARCHITECTURE_LAYERS.md](./ARCHITECTURE_LAYERS.md) for complete details.
 - ✅ Logging with Winston
 - ✅ Layered architecture pattern implemented
 
-### LiteLLM Service (backend/litellm/)
+### LiteLLM Service (backend/litellm/) - Port 8001
 - ✅ FastAPI server with endpoints
-- ✅ POST /rerank - Cohere Rerank v3 integration
-- ✅ POST /summarize - OpenAI GPT-4o-mini summaries
+- ✅ POST /summarize - OpenAI GPT-4o-mini structured summaries
 - ✅ GET /health - Health check
-- ✅ Custom implementations in custom/ directory
+- ✅ Custom summarization implementation in custom/
+- ✅ Config management with pydantic-settings
 - ✅ Full requirements.txt
 
-### Llama-Indexer Service (backend/llama-indexer/)
+### Llama-Indexer Service (backend/llama-indexer/) - Port 8002
 - ✅ FastAPI server with endpoints
 - ✅ POST /search/hybrid - BM25 + vector hybrid search
+- ✅ POST /rerank - Cohere Rerank v3 integration (MOVED HERE)
 - ✅ POST /highlights - Highlight generation
 - ✅ POST /index - Document indexing
 - ✅ POST /ingest/* - OpenAlex, arXiv, Startup ingestion
 - ✅ GET /health - Health check with Pinecone stats
-- ✅ Services: embeddings, chunking, retriever, highlight
+- ✅ Services: embeddings, chunking, retriever, reranker, highlight
 - ✅ Clients: opensearch, pinecone
+- ✅ Full requirements.txt
+
+### Tavily Service (backend/tavily/) - Port 8003 (NEW)
+- ✅ FastAPI server with endpoints
+- ✅ POST /search - Real-time web search via Tavily API
+- ✅ POST /extract - URL content extraction
+- ✅ GET /health - Health check
+- ✅ Service implementation in services/search.py
+- ✅ Config management with pydantic-settings
 - ✅ Full requirements.txt
 
 ## ⚠️ What Still Needs Implementation
