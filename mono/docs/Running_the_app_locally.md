@@ -42,8 +42,8 @@ You'll need API keys from these services:
 3. **Pinecone** - For vector storage
    - Get key: https://app.pinecone.io/
 
-4. **Perplexity** - For startup discovery
-   - Get key: https://www.perplexity.ai/settings/api
+4. **Tavily** - For real-time web search (startups)
+   - Get key: https://tavily.com/
 
 ---
 
@@ -94,8 +94,8 @@ This will install dependencies for:
    PINECONE_CLOUD=aws
    PINECONE_ENVIRONMENT=us-west-2
 
-   # Perplexity (REQUIRED)
-   PERPLEXITY_API_KEY=your-actual-perplexity-key-here
+   # Tavily (REQUIRED)
+   TAVILY_API_KEY=your-actual-tavily-key-here
 
    # Admin token for protected endpoints
    ADMIN_BEARER_TOKEN=your-secure-token-here
@@ -115,8 +115,9 @@ This will install dependencies for:
    OPENSEARCH_PASSWORD=admin
 
    # Service URLs (for local development)
-   LITELLM_URL=http://localhost:8001
-   LLAMA_INDEXER_URL=http://localhost:8002
+   LITELLM_SERVICE_URL=http://localhost:8001
+   LLAMA_INDEXER_SERVICE_URL=http://localhost:8002
+   TAVILY_SERVICE_URL=http://localhost:8003
    NEXT_PUBLIC_API_URL=http://localhost:8000
    ```
 

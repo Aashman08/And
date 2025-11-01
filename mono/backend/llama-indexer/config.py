@@ -50,8 +50,8 @@ class Settings(BaseSettings):
     # Embeddings
     embedding_model: str = "intfloat/e5-base-v2"
 
-    # Perplexity for startup discovery
-    perplexity_api_key: str
+    # Tavily for web search
+    tavily_api_key: str
 
     # Application settings
     pythonhashseed: int = 0
@@ -66,8 +66,8 @@ class Settings(BaseSettings):
             missing.append("COHERE_API_KEY")
         if not self.pinecone_api_key or self.pinecone_api_key.startswith("your-"):
             missing.append("PINECONE_API_KEY")
-        if not self.perplexity_api_key or self.perplexity_api_key.startswith("your-"):
-            missing.append("PERPLEXITY_API_KEY")
+        if not self.tavily_api_key or self.tavily_api_key.startswith("your-"):
+            missing.append("TAVILY_API_KEY")
 
         if missing:
             print(
