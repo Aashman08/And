@@ -344,5 +344,3 @@ MIT License - see LICENSE file for details
 
 ---
 
-**Built with ❤️ for the research and innovation community**
-
