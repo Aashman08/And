@@ -4,23 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**R&D Discovery System** - AI-powered platform combining BM25 full-text search, semantic vector search, and LLM-powered reranking to help R&D teams discover relevant research papers and startups.
+**R&D Discovery System** - AI-powered platform that searches web for startups (Tavily) and database for papers (hybrid search), displaying results in separate sections with LLM-powered summaries.
 
 **Tech Stack**:
 - Frontend: Next.js 14 (TypeScript)
 - API Gateway: tRPC + Express (TypeScript)
 - Microservices: Python (FastAPI)
 - Database: PostgreSQL + Prisma ORM
-- Search: OpenSearch (BM25) + Pinecone (vectors)
+- Search: OpenSearch (BM25) + Pinecone (vectors) + Tavily (web)
 - ML: sentence-transformers (e5-base-v2), OpenAI, Cohere
 
 ## Architecture
 
-This is a **microservices monorepo** with three main services:
+This is a **microservices monorepo** with four main services:
 
 1. **backend/api/** - TypeScript/tRPC API gateway (port 8000)
-2. **backend/litellm/** - Python LLM proxy service (port 8001)
-3. **backend/llama-indexer/** - Python document processing/search service (port 8002)
+2. **backend/litellm/** - Python summarization service (port 8001)
+3. **backend/llama-indexer/** - Python search/reranking service (port 8002)
+4. **backend/tavily/** - Python web search service (port 8003)
 
 ### Critical: Layered Architecture in backend/api/
 
@@ -72,7 +73,8 @@ yarn workspace @r2d/next dev    # Run frontend only
 
 # Python services (from their directories)
 cd backend/litellm && python -m uvicorn server:app --reload --port 8001
-cd backend/llama-indexer && python -m uvicorn app.main:app --reload --port 8002
+cd backend/llama-indexer && python -m uvicorn main:app --reload --port 8002
+cd backend/tavily && python -m uvicorn server:app --reload --port 8003
 ```
 
 ### Database
@@ -194,8 +196,13 @@ The system uses **three main Prisma models**:
 - Update `requirements.txt` if new deps needed
 
 **For Llama-Indexer** (`backend/llama-indexer/`):
-- Add endpoint to `app/main.py`
-- Implement in `app/services/` (business logic) or `app/clients/` (external APIs)
+- Add endpoint to `main.py`
+- Implement in `services/` (business logic) or `clients/` (external APIs)
+- Update `requirements.txt` if new deps needed
+
+**For Tavily** (`backend/tavily/`):
+- Add endpoint to `server.py`
+- Implement in `services/` directory
 - Update `requirements.txt` if new deps needed
 
 ## Environment Setup
@@ -204,7 +211,7 @@ Required API keys in `.env`:
 - `OPENAI_API_KEY` - For summarization (GPT-4o-mini)
 - `COHERE_API_KEY` - For reranking (Rerank v3)
 - `PINECONE_API_KEY` - For vector storage
-- `PERPLEXITY_API_KEY` - For startup discovery
+- `TAVILY_API_KEY` - For real-time web search (startups)
 - `ADMIN_BEARER_TOKEN` - For protected admin endpoints
 
 **Important**: You must manually create the Pinecone serverless index:
@@ -212,6 +219,52 @@ Required API keys in `.env`:
 - Dimensions: 768 (for e5-base-v2)
 - Metric: cosine
 - Cloud: AWS, Region: us-west-2
+
+## Search Workflow (Current Implementation)
+
+**User Query Flow:**
+```
+1. User types query: "how to overcome anode plating"
+   ↓
+2. Frontend → API Gateway (/search.query)
+   ↓
+3. API Gateway → PARALLEL execution:
+   ├─→ Tavily Service (port 8003)
+   │   └─ Web search → Top 10 startups
+   │
+   └─→ Llama-Indexer Service (port 8002)
+       ├─ Hybrid search (BM25 + vector) → 256 results
+       ├─ Rerank with Cohere → Top 20 papers
+       └─ Generate highlights
+   ↓
+4. Return to Frontend:
+   {
+     startups: [...10 from Tavily],
+     papers: [...20 from database]
+   }
+   ↓
+5. Frontend displays TWO SEPARATE SECTIONS:
+   - 🏢 Relevant Startups (10)
+   - 📄 Research Papers (20)
+```
+
+**User Clicks Summarize:**
+```
+1. Frontend → API Gateway (/search.summarize)
+   ↓
+2. API Gateway → PostgreSQL (get document)
+   ↓
+3. API Gateway → LiteLLM Service (port 8001)
+   ↓
+4. LiteLLM → OpenAI GPT-4o-mini
+   ↓
+5. Returns 5-section summary:
+   - problem
+   - approach
+   - evidence_or_signals
+   - result
+   - limitations
+```
 
 ## Common Issues
 
@@ -273,3 +326,5 @@ yarn type-check
 ---
 
 **When in doubt**: Read `docs/ARCHITECTURE_LAYERS.md` - it contains the critical layered architecture pattern that MUST be followed in backend/api/.
+
+NOTE - Do not create new .md files please, it is stupid

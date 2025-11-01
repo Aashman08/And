@@ -11,7 +11,8 @@ export default function HomePage() {
   // Search state
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<SearchFilters>({})
-  const [results, setResults] = useState<SearchResult[]>([])
+  const [startups, setStartups] = useState<SearchResult[]>([])
+  const [papers, setPapers] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
 
@@ -36,7 +37,8 @@ export default function HomePage() {
         limit: 20,
       })
 
-      setResults(response.results)
+      setStartups(response.startups)  // Top 10 from Tavily
+      setPapers(response.papers)      // Top 20 from database
     } catch (error) {
       console.error('Search failed:', error)
       setSearchError(error instanceof Error ? error.message : 'Search failed')
@@ -108,7 +110,7 @@ export default function HomePage() {
       )}
 
       {/* Results section */}
-      {(isSearching || results.length > 0) && (
+      {(isSearching || startups.length > 0 || papers.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar with facets */}
           <aside className="lg:col-span-1">
@@ -121,33 +123,69 @@ export default function HomePage() {
               <div className="flex items-center justify-center py-20">
                 <div className="text-center">
                   <Loader2 className="w-10 h-10 text-primary-600 animate-spin mx-auto mb-4" />
-                  <p className="text-gray-600">Searching...</p>
-                </div>
-              </div>
-            ) : results.length > 0 ? (
-              <div>
-                <div className="mb-4 flex items-center justify-between">
-                  <p className="text-sm text-gray-600">
-                    Found <span className="font-semibold">{results.length}</span> results for{' '}
-                    <span className="font-semibold">&quot;{query}&quot;</span>
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  {results.map((result) => (
-                    <ResultCard
-                      key={result.id}
-                      result={result}
-                      summary={summaries[result.id]}
-                      isSummarizing={summarizingIds.has(result.id)}
-                      onSummarize={() => handleSummarize(result.id)}
-                    />
-                  ))}
+                  <p className="text-gray-600">Searching across startups and research papers...</p>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-20">
-                <p className="text-gray-500">No results found. Try a different query.</p>
+              <div className="space-y-8">
+                {/* Section 1: Startups from Tavily */}
+                {startups.length > 0 && (
+                  <div>
+                    <div className="mb-4 flex items-center space-x-2">
+                      <h2 className="text-2xl font-bold text-gray-900">🏢 Relevant Startups</h2>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded">
+                        {startups.length}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Companies and startups working on related problems (via web search)
+                    </p>
+                    <div className="space-y-4">
+                      {startups.map((startup) => (
+                        <ResultCard
+                          key={startup.id}
+                          result={startup}
+                          summary={summaries[startup.id]}
+                          isSummarizing={summarizingIds.has(startup.id)}
+                          onSummarize={() => handleSummarize(startup.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Section 2: Papers from Database */}
+                {papers.length > 0 && (
+                  <div>
+                    <div className="mb-4 flex items-center space-x-2">
+                      <h2 className="text-2xl font-bold text-gray-900">📄 Research Papers</h2>
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-sm font-medium rounded">
+                        {papers.length}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Academic papers and research addressing this problem
+                    </p>
+                    <div className="space-y-4">
+                      {papers.map((paper) => (
+                        <ResultCard
+                          key={paper.id}
+                          result={paper}
+                          summary={summaries[paper.id]}
+                          isSummarizing={summarizingIds.has(paper.id)}
+                          onSummarize={() => handleSummarize(paper.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* No results state */}
+                {startups.length === 0 && papers.length === 0 && (
+                  <div className="text-center py-20">
+                    <p className="text-gray-500">No results found. Try a different query.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -155,7 +193,7 @@ export default function HomePage() {
       )}
 
       {/* Empty state */}
-      {!isSearching && results.length === 0 && !query && (
+      {!isSearching && startups.length === 0 && papers.length === 0 && !query && (
         <div className="text-center py-20">
           <div className="max-w-md mx-auto">
             <p className="text-gray-600 mb-6">

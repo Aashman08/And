@@ -1,5 +1,42 @@
 # Changelog - Architecture Restructuring
 
+## November 2025 - Parallel Search & Tavily Integration
+
+### ✅ Recent Changes
+
+#### 1. Tavily Web Search Integration
+- **Created** `backend/tavily/` - New Python service for real-time web search
+  - FastAPI server with `/search` and `/extract` endpoints
+  - Tavily API integration for startup discovery
+  - Port 8003
+- **Replaced** Perplexity with Tavily for web search
+  - Removed automated startup seed query discovery
+  - Using real-time web search instead
+
+#### 2. Parallel Search Architecture
+- **Updated** `backend/api/src/procedures/search.ts` - Parallel execution
+  - Calls Tavily + Database simultaneously
+  - Returns separate `startups` and `papers` arrays
+- **Created** `backend/api/src/clients/tavily.ts` - Tavily client
+- **Updated** Frontend to display two sections:
+  - 🏢 Relevant Startups (top 10 from web)
+  - 📄 Research Papers (top 20 from database)
+
+#### 3. Service Separation & Clean Architecture
+- **Moved** Cohere reranking from LiteLLM to Llama-Indexer
+- **Simplified** LiteLLM to ONLY handle summarization
+- **Created** `prompts.py` and `constants.py` in each service
+- **Removed** automated startup ingestion (seed queries)
+
+#### 4. Bug Fixes
+- **Fixed** `.storybook/preview.ts` → `.tsx` (JSX support)
+- **Fixed** `ResultCard.tsx` corrupted `'use client'` directive
+- **Fixed** `docker-compose.yml` corrupted version string
+- **Fixed** Llama-Indexer module imports (`app.main` → `main`)
+- **Added** React import to Storybook preview
+
+---
+
 ## January 2025 - Major Architecture Refactor
 
 ### ✅ Completed Changes
@@ -116,6 +153,7 @@ Services will run on:
 - TypeScript API: http://localhost:8000
 - LiteLLM: http://localhost:8001
 - Llama-Indexer: http://localhost:8002
+- Tavily: http://localhost:8003
 
 ### 📋 Remaining Work
 

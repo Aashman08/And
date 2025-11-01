@@ -1,8 +1,8 @@
 # Implementation Summary - R&D Discovery System
 
-**Status**: ✅ **COMPLETE**
+**Status**: 🚧 **IN PROGRESS** - Core search workflow implemented
 
-All phases of the AI R&D Discovery System have been successfully implemented.
+The R&D Discovery System is being built with a microservices architecture featuring parallel search across web and database sources.
 
 ---
 
@@ -10,43 +10,58 @@ All phases of the AI R&D Discovery System have been successfully implemented.
 
 ### Phase 1: Backend API ✅
 
-**Files Created:**
-- `apps/backend/api/app/routers/search.py` - Wired actual search and summarize endpoints
-- `apps/backend/api/app/services/ingest_openalex.py` - OpenAlex API ingestion (800+ papers)
-- `apps/backend/api/app/services/ingest_arxiv.py` - arXiv API ingestion (400+ papers)
-- `apps/backend/api/app/services/ingest_startups.py` - Perplexity API ingestion (100+ startups)
-- `apps/backend/api/app/routers/ingest.py` - Wired all 3 ingestion services
+**Backend Services Implemented:**
+- `backend/api/` - TypeScript/tRPC API gateway with layered architecture
+- `backend/litellm/` - Summarization service (OpenAI GPT-4o-mini)
+- `backend/llama-indexer/` - Hybrid search, reranking (Cohere), highlights
+- `backend/tavily/` - Real-time web search service (Tavily API)
+
+**Current Search Flow:**
+```
+User Query → API Gateway
+  ├─→ Tavily (parallel) → Top 10 startups from web
+  └─→ Llama-Indexer (parallel) → Top 20 papers from database
+      ├─ Hybrid search (BM25 + vectors)
+      ├─ Rerank with Cohere
+      └─ Generate highlights
+
+Returns: { startups: [], papers: [] }
+Frontend displays two separate sections
+```
 
 **Capabilities:**
-- Hybrid search combining BM25 + vector retrieval
-- Cohere reranking for relevance optimization
-- Sentence-level highlight generation
-- Structured AI summarization with GPT-4o-mini
-- Multi-source ingestion pipeline
+- ✅ Parallel search execution (Tavily + Database)
+- ✅ Hybrid search (BM25 + vector retrieval)
+- ✅ Cohere reranking for relevance
+- ✅ Sentence-level highlight generation
+- ✅ Structured AI summarization (5 sections)
+- ✅ Separate startup and paper results
 
 ---
 
 ### Phase 2: Frontend (Next.js 14) ✅
 
-**Files Created:**
+**Files Implemented:**
 - `apps/next/package.json` - Dependencies and scripts
 - `apps/next/tsconfig.json` - TypeScript configuration
 - `apps/next/next.config.js` - Next.js configuration with API proxy
 - `apps/next/tailwind.config.ts` - Tailwind styling
 - `apps/next/app/layout.tsx` - Root layout with header/footer
-- `apps/next/app/page.tsx` - Main search page
+- `apps/next/app/page.tsx` - Main search page with TWO SECTIONS (startups + papers)
 - `apps/next/app/globals.css` - Global styles
-- `apps/next/lib/api.ts` - Type-safe API client
+- `apps/next/lib/api.ts` - Type-safe API client with updated types
 - `apps/next/components/search/SearchBar.tsx` - Search input component
 - `apps/next/components/search/Facets.tsx` - Filter sidebar component
 - `apps/next/components/search/ResultCard.tsx` - Result display component
 
 **Features:**
-- Responsive, modern UI with Tailwind CSS
-- Real-time search with faceted filtering
-- One-click AI summarization
-- Paper vs startup styling
-- External link handling
+- ✅ Responsive, modern UI with Tailwind CSS
+- ✅ Parallel search display (startups section + papers section)
+- ✅ Real-time search with faceted filtering
+- ✅ One-click AI summarization
+- ✅ Clear visual separation (blue badges for startups, green for papers)
+- ✅ Paper vs startup styling
+- ✅ External link handling
 
 ---
 
@@ -71,13 +86,13 @@ All phases of the AI R&D Discovery System have been successfully implemented.
 
 ### Phase 4: Scripts & Data ✅
 
-**Files Created:**
+**Files Implemented:**
 - `scripts/ingest_openalex.py` - CLI for OpenAlex ingestion
 - `scripts/ingest_arxiv.py` - CLI for arXiv ingestion
-- `scripts/ingest_startups.py` - CLI for startup ingestion
 - `scripts/build_indexes.py` - Create search indices
 - `scripts/eval_ndcg.py` - Evaluate search quality (NDCG@10)
-- `data/startups_seed.yaml` - Curated seed queries (4 topics, 20 queries)
+
+**Note:** Automated startup seed ingestion removed - using real-time Tavily web search instead
 - `data/eval/gold_queries.jsonl` - Gold-standard evaluation queries
 
 **Capabilities:**
@@ -173,10 +188,10 @@ make docker-logs
 
 Before running, set these in `.env`:
 
-1. **PINECONE_API_KEY** - Vector database
-2. **OPENAI_API_KEY** - Summarization
-3. **COHERE_API_KEY** - Reranking
-4. **PERPLEXITY_API_KEY** - Startup discovery
+1. **PINECONE_API_KEY** - Vector database (papers)
+2. **OPENAI_API_KEY** - Summarization (GPT-4o-mini)
+3. **COHERE_API_KEY** - Reranking (Rerank v3)
+4. **TAVILY_API_KEY** - Real-time web search (startups)
 5. **ADMIN_BEARER_TOKEN** - API protection
 
 ---

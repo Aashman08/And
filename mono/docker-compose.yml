@@ -90,7 +90,7 @@ services:
       PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME:-aashman-chunks}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       COHERE_API_KEY: ${COHERE_API_KEY}
-      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
       ADMIN_BEARER_TOKEN: ${ADMIN_BEARER_TOKEN:-dev-admin-token-change-in-production}
       
       # Models

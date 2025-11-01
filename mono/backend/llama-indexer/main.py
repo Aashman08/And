@@ -326,22 +326,6 @@ async def ingest_arxiv():
     }
 
 
-@app.post("/ingest/startups")
-async def ingest_startups():
-    """
-    Ingest startups via Perplexity API.
-
-    Protected endpoint - should be called via main API gateway.
-    """
-    # TODO: Implement actual ingestion
-    return {
-        "status": "completed",
-        "total_fetched": 0,
-        "total_indexed": 0,
-        "message": "Startup ingestion not fully implemented",
-    }
-
-
 if __name__ == "__main__":
     import uvicorn
 

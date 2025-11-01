@@ -4,15 +4,17 @@
 
 ## 🎯 Overview
 
-This system combines **BM25 full-text search**, **semantic vector search**, and **LLM-powered reranking** to help R&D teams find the most relevant papers and startups for their technical challenges.
+This system combines **real-time web search**, **hybrid document search**, and **LLM-powered analysis** to help R&D teams find relevant startups and research papers for their technical challenges.
 
 ### Key Features
 
+- **Parallel Search**: Simultaneously searches web (Tavily) for startups and database (hybrid) for papers
+- **Separate Results**: Clear sections for startups (top 10) and papers (top 20)
 - **Hybrid Search**: Combines OpenSearch (BM25) + Pinecone (vectors) for comprehensive retrieval
 - **AI Reranking**: Cohere Rerank v3 for relevance optimization
 - **Smart Highlights**: Automatically generates "why this result?" explanations
 - **Structured Summaries**: GPT-4o-mini generates 5-section summaries (problem, approach, evidence, result, limitations)
-- **Multi-Source Ingestion**: Papers from OpenAlex & arXiv, startups from Perplexity API
+- **Multi-Source**: Real-time web startups via Tavily + academic papers from OpenAlex & arXiv
 - **Type-Safe API**: tRPC for end-to-end TypeScript safety
 
 ---
@@ -21,11 +23,21 @@ This system combines **BM25 full-text search**, **semantic vector search**, and 
 
 ```
 Frontend (Next.js 14) → API Gateway (tRPC/TypeScript) → Microservices (Python)
-                                                         ├─ LiteLLM (LLM ops)
-                                                         └─ Llama-Indexer (Search & Indexing)
+                                                         ├─ LiteLLM (Summarization)
+                                                         ├─ Llama-Indexer (Search & Reranking)
+                                                         └─ Tavily (Web Search)
 ```
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design.
+**Search Flow:**
+```
+User Query → API Gateway
+              ├─→ Tavily Service → Top 10 Startups (web search)
+              └─→ Llama-Indexer → Top 20 Papers (hybrid + rerank)
+              
+Results: 🏢 Startups Section | 📄 Papers Section
+```
+
+See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for detailed system design.
 
 ## 📁 Repository Structure
 
@@ -34,12 +46,12 @@ mono/
 ├── apps/next/              # Next.js frontend
 ├── backend/
 │   ├── api/               # TypeScript/tRPC gateway
-│   ├── litellm/           # Python LLM service
-│   └── llama-indexer/     # Python search service
+│   ├── litellm/           # Python summarization service
+│   ├── llama-indexer/     # Python search/reranking service
+│   └── tavily/            # Python web search service
 ├── packages/
 │   ├── prisma/            # Database schema
 │   └── universal/         # Shared types
-├── data/                  # Seed data & eval
 ├── scripts/               # CLI tools
 └── docs/                  # Documentation
 ```
@@ -74,11 +86,11 @@ PINECONE_INDEX_NAME=r2d-chunks
 # OpenAI (required)
 OPENAI_API_KEY=your-openai-key
 
-# Cohere (required)
+# Cohere (required for reranking)
 COHERE_API_KEY=your-cohere-key
 
-# Perplexity (required for startup ingestion)
-PERPLEXITY_API_KEY=your-perplexity-key
+# Tavily (required for web search)
+TAVILY_API_KEY=your-tavily-key
 
 # Admin token for protected endpoints
 ADMIN_BEARER_TOKEN=your-secure-token
