@@ -1,0 +1,145 @@
+\\\\\\\\\\\\\\\\\\\\\\version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:16-alpine
+    container_name: r2d-postgres
+    environment:
+      POSTGRES_DB: r2d
+      POSTGRES_USER: r2d
+      POSTGRES_PASSWORD: r2d
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U r2d"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - r2d-network
+
+  # OpenSearch for BM25 search
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: r2d-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - r2d-network
+
+  # Prisma migrations runner
+  prisma-migrations:
+    build:
+      context: ./apps/backend/prisma-migrations
+      dockerfile: Dockerfile
+    container_name: r2d-prisma-migrations
+    environment:
+      DATABASE_URL: postgresql://r2d:r2d@postgres:5432/r2d
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - r2d-network
+
+  # FastAPI backend
+  api:
+    build:
+      context: ./apps/backend/api
+      dockerfile: Dockerfile
+    container_name: r2d-api
+    environment:
+      # Database
+      DATABASE_URL: postgresql://r2d:r2d@postgres:5432/r2d
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: r2d
+      POSTGRES_USER: r2d
+      POSTGRES_PASSWORD: r2d
+      
+      # OpenSearch
+      OPENSEARCH_HOST: opensearch
+      OPENSEARCH_PORT: 9200
+      OPENSEARCH_USERNAME: admin
+      OPENSEARCH_PASSWORD: admin
+      
+      # API Keys (required - set in .env)
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME:-r2d-chunks}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      COHERE_API_KEY: ${COHERE_API_KEY}
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
+      ADMIN_BEARER_TOKEN: ${ADMIN_BEARER_TOKEN:-dev-admin-token-change-in-production}
+      
+      # Models
+      EMBEDDING_MODEL: intfloat/e5-base-v2
+      LITELLM_SUMMARIZATION_MODEL: gpt-4o-mini
+      
+      # App settings
+      PYTHONHASHSEED: 0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/backend/api:/app
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      prisma-migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - r2d-network
+
+  # Next.js frontend
+  next:
+    build:
+      context: .
+      dockerfile: ./apps/next/Dockerfile
+    container_name: r2d-next
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - r2d-network
+
+volumes:
+  postgres_data:
+  opensearch_data:
+
+networks:
+  r2d-network:
+    driver: bridge
+

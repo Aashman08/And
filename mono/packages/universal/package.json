@@ -1,0 +1,14 @@
+{
+  "name": "@r2d/universal",
+  "version": "1.0.0",
+  "main": "./src/types.ts",
+  "types": "./src/types.ts",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo node_modules"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

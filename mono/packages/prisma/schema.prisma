@@ -1,0 +1,101 @@
+// Prisma schema for R&D Discovery System
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SourceType {
+  PAPER
+  STARTUP
+}
+
+enum IngestionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+// Main document metadata (papers or startups)
+model Document {
+  id          String     @id @default(cuid())
+  source      SourceType
+  externalId  String     @unique // DOI, arXiv ID, or URL hash
+
+  // Common fields
+  title       String
+  description String     @db.Text // abstract for papers, description for startups
+  year        Int?
+  language    String?    @default("en")
+
+  // Paper-specific fields
+  doi         String?
+  authors     String[]   @default([])
+  venue       String?
+  concepts    String[]   @default([])
+
+  // Startup-specific fields
+  website     String?
+  oneLiner    String?
+  stage       String?
+  industry    String[]   @default([])
+  country     String?
+
+  // Metadata
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  chunks      Chunk[]
+
+  @@index([source, year])
+  @@index([externalId])
+}
+
+// Semantic chunks for retrieval
+model Chunk {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  chunkIndex Int      // Position in document
+  text       String   @db.Text
+  section    String?  // e.g., "abstract", "introduction", "description"
+
+  // Vector metadata (stored in Pinecone, referenced here)
+  vectorId   String?  @unique // Pinecone vector ID
+
+  createdAt  DateTime @default(now())
+
+  @@index([documentId, chunkIndex])
+  @@index([vectorId])
+}
+
+// Track ingestion runs for observability
+model IngestionRun {
+  id          String           @id @default(cuid())
+  source      SourceType
+  status      IngestionStatus  @default(PENDING)
+
+  // Stats
+  totalFetched    Int          @default(0)
+  totalProcessed  Int          @default(0)
+  totalIndexed    Int          @default(0)
+  errorCount      Int          @default(0)
+
+  // Timing
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+
+  // Error log
+  errors      String[]         @default([])
+
+  @@index([source, status])
+  @@index([startedAt])
+}
