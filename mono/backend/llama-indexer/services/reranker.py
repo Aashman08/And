@@ -4,7 +4,10 @@ from typing import List, Tuple
 
 import httpx
 
-from app.config import settings
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +74,4 @@ async def rerank_documents(
         # Fallback: return original documents with their scores
         logger.warning("Falling back to original ranking")
         return [(doc, doc.get("score", 0.0)) for doc in documents[:top_n]]
+

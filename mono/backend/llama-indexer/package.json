@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "python -m uvicorn app.main:app --reload --port 8002",
-    "start": "python -m uvicorn app.main:app --host 0.0.0.0 --port 8002"
+    "dev": "python -m uvicorn main:app --reload --port 8002",
+    "start": "python -m uvicorn main:app --host 0.0.0.0 --port 8002"
   }
 }
